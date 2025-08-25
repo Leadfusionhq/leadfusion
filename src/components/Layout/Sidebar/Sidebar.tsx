@@ -58,7 +58,7 @@ const Sidebar = () => {
           alt="Logo"
           width={80}
           height={80}
-          className="mx-auto lg:w-auto p-[6px] h-[70px] lg:h-[72px]   transition-all duration-300"
+          className="mx-auto lg:w-auto p-[6px] lg:h-[72px]   transition-all duration-300"
         />
       </div>
       <nav className="sidebar-nav flex-1 px-[18px] py-4 space-y-[30px]">
