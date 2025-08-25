@@ -21,7 +21,7 @@ export const adminSidebarItems: SidebarItem[] = [
   {
     id: 'locations',
     name: 'Locations',
-    icon: FiMapPin,
+    icon: '/images/icons/location12345.svg',
     link: '/admin/locations',
     pathCombinations: [
       '/admin/locations/edit',

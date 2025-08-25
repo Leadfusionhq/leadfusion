@@ -39,7 +39,7 @@ const Sidebar = () => {
 <aside
   className={`bg-black  fixed z-10 lg:z-10 top-0 left-0   text-white flex flex-col justify-between min-h-screen
     lg:translate-x-0
-    transition-all duration-300   ${collapsed ? 'lg:w-[6%] translate-x-0 w-[85%]  ' : "lg:w-[21%]  hidden lg:flex -translate-x-full "} 
+    transition-all duration-300   ${collapsed ? 'lg:w-[6%] translate-x-0 w-[85%]  ' : "lg:w-[19%]  hidden lg:flex -translate-x-full "} 
   `}
 >   
            <button
@@ -54,11 +54,11 @@ const Sidebar = () => {
 
    <div className="logo-container border-b border-[#FFFFFF17]">
         <Image
-          src="/images/logo.svg"
+          src="/images/logo1234567.png"
           alt="Logo"
           width={80}
           height={80}
-          className="mx-auto h-[140px] lg:h-[72px]   transition-all duration-300"
+          className="mx-auto lg:w-auto p-[6px] h-[70px] lg:h-[72px]   transition-all duration-300"
         />
       </div>
       <nav className="sidebar-nav flex-1 px-[18px] py-4 space-y-[30px]">
@@ -66,7 +66,7 @@ const Sidebar = () => {
           <SidebarItem key={item.id} item={item} />
         ))}
       </nav>
-      <div className={`logout-container ${collapsed?"px-[6px]":"px-[9px]"} py-4`}>
+      <div className={`logout-container ${collapsed?"px-[6px]":"px-[18px]"} py-4`}>
         <button
           className={`w-full flex items-center justify-center whitespace-nowrap overflow-hidden text-ellipsis cursor-pointer transition-all duration-300  bg-transparent text-[#204D9D] font-semibold delay-[1ms] rounded-full py-2 ${collapsed?"px-4":"px-4 border border-[#204D9D]"} `}
 
