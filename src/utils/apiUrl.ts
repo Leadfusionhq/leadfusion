@@ -20,6 +20,7 @@ export const API_URL = {
     GET_USER_BY_ID: `${USER_API_BASE}/:userId`,
     DELETE_USER_BY_ID: `${USER_API_BASE}/:userId`,
 
+
     ACCEPT_CONTRACT:`${USER_API_BASE}/:userId/contract/accept`,
     CHECK_CONTRACT:`${USER_API_BASE}/:userId/contract/status`,
     
@@ -32,6 +33,8 @@ export const API_URL = {
 
     GET_ALL_REGULAR_ADMIN: `${ADMIN_API_BASE}?role=Admin`,
     UPLOAD_AVATAR: `${ADMIN_API_BASE}/:adminId/avatar`,
+    
+    ADD_BALANCE:`${ADMIN_API_BASE}/:userId/addBalance`,
 
     // Auth URLs
     LOGIN_USER: `${AUTH_API_BASE}/login`,
@@ -100,6 +103,7 @@ const CAMPAIGNS_API_BASE = `${API_BASE}/campaigns`;
 export const CAMPAIGNS_API = {
   GET_ALL_CAMPAIGNS: `${CAMPAIGNS_API_BASE}/`,
   CREATE_CAMPAIGN: `${CAMPAIGNS_API_BASE}/`,
+  CREATE_CAMPAIGN_BY_ADMIN: `${CAMPAIGNS_API_BASE}/:userId/add`,
   GET_CAMPAIGN: `${CAMPAIGNS_API_BASE}/:campaignId`,
   UPDATE_CAMPAIGN: `${CAMPAIGNS_API_BASE}/:campaignId`,
   QUICK_SEARCH: `${CAMPAIGNS_API_BASE}/quick-search`,
@@ -123,6 +127,11 @@ export const LEADS_API = {
   GET_LEADS_BY_CAMPAIGN:`${LEADS_API_BASE}/`,
   
   GET_LEADS_BY_CLIENT:`${LEADS_API_BASE}/client`,
+
+  RETURN_LEAD:`${LEADS_API_BASE}/return`,
+  GET_RETURN_LEADS: `${LEADS_API_BASE}/getReturnLeads`,
+  APPROVE_RETURN_LEAD: `${LEADS_API_BASE}/returns/approve`,
+  REJECT_RETURN_LEAD: `${LEADS_API_BASE}/returns/reject`,
 };
 
 /** ::::::::::::::::::utilities ROUTES :::::::::::::::::: */
@@ -144,6 +153,15 @@ export const CSV_API = {
   COMPLETE_MULTIPART_UPLOAD: `${CSV_API_BASE}/complete-multipart`,
   IMPORT_MAPPED_CSV: `${CSV_API_BASE}/import-mapped`,
   IMPORT_SHEET_CSV: `${CSV_API_BASE}/csv/google-sheet`,
+};
+
+/** ::::::::::::::::::SEARCH ROUTES :::::::::::::::::: */
+const SEARCH_API_BASE = `${API_IMPORT_BASE}/filters`;
+
+export const SEARCH_API = {
+  FILTER_QUERIES: `${SEARCH_API_BASE}/filteringdata`,
+  SEARCH_QUERIES: `${SEARCH_API_BASE}/count`,
+
 };
 
 
