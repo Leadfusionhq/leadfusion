@@ -4,14 +4,9 @@ import { useState, useEffect } from "react";
 import { SEARCH_API } from "@/utils/apiUrl";
 import axiosWrapper from "@/utils/api";
 import { useLoader } from "@/context/LoaderContext";
+import { FilterResponse } from "@/types/search";
 
 const NEXT_PUBLIC_CSV_API_TOKEN = process.env.NEXT_PUBLIC_CSV_API_TOKEN;
-
-interface FilterResponse {
-  zips?: string[];
-  counties?: string[];
-  states?: string[];
-}
 
 interface SearchResponse {
   count: number;
@@ -20,11 +15,9 @@ interface SearchResponse {
   boberdooCount: number;
 }
 
-export default function Filters() {
-  const [states, setStates] = useState<string[]>([]);
+export default function Filters({states, loadingState}: {states: string[], loadingState: boolean}) {
   const [zips, setZips] = useState<string[]>([]);
   const [counties, setCounties] = useState<string[]>([]);
-  const [loadingState, setLoadingState] = useState<boolean>(true);
   const [loadingZip, setLoadingZip] = useState<boolean>(true);
   const [loadingCounties, setLoadingCounties] = useState<boolean>(true);
 
@@ -39,28 +32,6 @@ export default function Filters() {
 
   const { showLoader, hideLoader } = useLoader();
 
-  // Step 1: Fetch all states on mount
-  useEffect(() => {
-    const fetchStates = async () => {
-      try {
-        setLoadingState(true);
-        const res = (await axiosWrapper(
-          "get",
-          SEARCH_API.FILTER_STATES,
-          undefined,
-          NEXT_PUBLIC_CSV_API_TOKEN
-        )) as FilterResponse;
-        setStates(res.states || []);
-      } catch (err) {
-        console.error("Error fetching states:", err);
-      } finally {
-        setLoadingState(false);
-      }
-    };
-    fetchStates();
-  }, []);
-
-  // Step 2: Fetch zips when a state is selected
   useEffect(() => {
     if (!selectedState) {
       setZips([]);
@@ -94,7 +65,6 @@ export default function Filters() {
     fetchZips();
   }, [selectedState]);
 
-  // Step 3: Fetch counties when zips are selected
   useEffect(() => {
     if (selectedZips.length === 0 || !selectedState) {
       setCounties([]);
@@ -205,7 +175,7 @@ export default function Filters() {
             disabled={loadingState}
           >
             {loadingState ? (
-              <option value="">Loading State...</option>
+              <option value="">Loading States...</option>
             ) : (
               <>
                 <option value="">Select State</option>
@@ -232,10 +202,10 @@ export default function Filters() {
               disabled={loadingZip}
             >
               {loadingZip ? (
-                <option value="">Loading Zip...</option>
+                <option value="">Loading Zips...</option>
               ) : (
                 <>
-                  <option value="">Select Zip</option>
+                  <option value="">Select Zips</option>
                   {zips.map((z) => (
                     <option key={z} value={z}>
                       {z}
@@ -278,10 +248,10 @@ export default function Filters() {
               disabled={loadingCounties}
             >
               {loadingCounties ? (
-                <option value="">Loading County...</option>
+                <option value="">Loading Counties...</option>
               ) : (
                 <>
-                  <option value="">Select County</option>
+                  <option value="">Select Counties</option>
                   {counties.map((c) => (
                     <option key={c} value={c}>
                       {c}

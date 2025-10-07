@@ -157,12 +157,15 @@ export const CSV_API = {
 
 /** ::::::::::::::::::SEARCH ROUTES :::::::::::::::::: */
 const SEARCH_API_BASE = `${API_IMPORT_BASE}/filters`;
+const SEARCH_CAMPAIGN_API_BASE = `${API_IMPORT_BASE}/campaigns`;
 
 export const SEARCH_API = {
   FILTER_STATES: `${SEARCH_API_BASE}/states`,
   FILTER_ZIPS: `${SEARCH_API_BASE}/zips`,
   FILTER_COUNTIES: `${SEARCH_API_BASE}/counties`,
   SEARCH_QUERIES: `${SEARCH_API_BASE}/count`,
+  SEARCH_CAMPAIGNS: `${SEARCH_CAMPAIGN_API_BASE}`,
+  SEARCH_CAMPAIGN_REPORTS: `${SEARCH_CAMPAIGN_API_BASE}/report/:id`,
 };
 
 
