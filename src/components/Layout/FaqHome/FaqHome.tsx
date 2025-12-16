@@ -61,9 +61,8 @@ function FaqHome() {
             >
               <p className="font-bold text-lg text-[#000]">{faq.question}</p>
               <span
-                className={`transition-transform duration-300 ${
-                  activeIndex === index ? 'rotate-180' : ''
-                }`}
+                className={`transition-transform duration-300 ${activeIndex === index ? 'rotate-180' : ''
+                  }`}
               >
                 <Image
                   src="/images/icons/Vector-3.png"

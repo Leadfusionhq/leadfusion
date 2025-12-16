@@ -1,46 +1,40 @@
-
-
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { LOG_API } from "@/utils/apiUrl";
 import axiosWrapper from "@/utils/api";
 import { useSelector } from "react-redux";
 import { RootState } from "@/redux/store";
 import DataTable, { TableColumn } from "react-data-table-component";
 import {
-  Skeleton,
-  Box,
-  Button,
-  Typography,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  Popover,
-  IconButton,
-  Chip,
-  Stack,
   Dialog,
-  DialogTitle,
   DialogContent,
-  DialogActions,
-  TextField,
-  Card,
-  CardContent,
-  Grid as Grid,
-  Divider,
+  Skeleton,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText
 } from "@mui/material";
-import FilterListIcon from "@mui/icons-material/FilterList";
-import ClearIcon from "@mui/icons-material/Clear";
-import VisibilityIcon from "@mui/icons-material/Visibility";
-import DownloadIcon from "@mui/icons-material/Download";
-import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
-import RefreshIcon from "@mui/icons-material/Refresh";
-import customStyles from "@/components/common/dataTableStyles";
+import {
+  Search,
+  Trash2,
+  RefreshCw,
+  Activity,
+  Server,
+  X,
+  Eye,
+  Copy,
+  Zap,
+  CheckCircle2,
+  Download,
+  FileJson,
+  FileSpreadsheet,
+  PlayCircle,
+  PauseCircle
+} from "lucide-react";
 import { toast } from "react-toastify";
-import ConfirmDialog from "@/components/common/ConfirmDialog";
 import { format } from "date-fns";
+import React from "react";
 
 // Define Log type
 type LogEntry = {
@@ -48,7 +42,6 @@ type LogEntry = {
   timestamp: string;
   level: "info" | "warn" | "error" | "debug";
   message: string;
-
   meta?: Record<string, any>;
 };
 
@@ -70,52 +63,85 @@ type StatsResponse = {
     total: number;
     todayCount: number;
     errorCount24h: number;
-    byLevel: {
-      info?: number;
-      warn?: number;
-      error?: number;
-      debug?: number;
-    };
-
+    byLevel: Record<string, number>;
   };
 };
 
 const LOG_LEVELS = ["INFO", "WARN", "ERROR", "DEBUG", "SUCCESS"];
 
+const customStyles = {
+  table: {
+    style: {
+      backgroundColor: '#ffffff',
+    },
+  },
+  headRow: {
+    style: {
+      backgroundColor: '#f8fafc',
+      borderBottomWidth: '1px',
+      borderBottomColor: '#e2e8f0',
+      minHeight: '48px',
+    },
+  },
+  headCells: {
+    style: {
+      fontSize: '0.7rem',
+      fontWeight: '700',
+      color: '#64748b',
+      paddingLeft: '24px',
+      paddingRight: '24px',
+      textTransform: 'uppercase' as const,
+      letterSpacing: '0.05em',
+    },
+  },
+  rows: {
+    style: {
+      minHeight: '60px',
+      fontSize: '0.875rem',
+      color: '#334155',
+      borderBottomWidth: '1px',
+      borderBottomColor: '#f1f5f9',
+      transition: 'all 0.2s',
+      '&:hover': {
+        backgroundColor: '#f8fafc',
+        cursor: 'pointer',
+      },
+    },
+  },
+  cells: {
+    style: {
+      paddingLeft: '24px',
+      paddingRight: '24px',
+    },
+  },
+};
+
 export default function LogsTable() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState<StatsResponse["data"] | null>(null);
   const [pagination, setPagination] = useState({ page: 1, limit: 50 });
   const [totalRows, setTotalRows] = useState<number>(0);
-  const [stats, setStats] = useState<StatsResponse["data"] | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isAutoRefresh, setIsAutoRefresh] = useState(false);
+  const autoRefreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Filter states
+  // Filters
   const [selectedLevel, setSelectedLevel] = useState<string>("");
-
   const [searchMessage, setSearchMessage] = useState<string>("");
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
 
-  // Temp filter states (for popover)
-  const [tempSelectedLevel, setTempSelectedLevel] = useState<string>("");
-
-  const [tempSearchMessage, setTempSearchMessage] = useState<string>("");
-  const [tempStartDate, setTempStartDate] = useState<string>("");
-  const [tempEndDate, setTempEndDate] = useState<string>("");
-
-  // UI states
-  const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
+  // UI
   const [detailDialog, setDetailDialog] = useState<{
     open: boolean;
     log: LogEntry | null;
   }>({ open: false, log: null });
-  const [clearDialog, setClearDialog] = useState(false);
-
+  const [clearDialogOpen, setClearDialogOpen] = useState(false);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
   const token = useSelector((state: RootState) => state.auth.token);
 
-  // Fetch logs statistics
   const fetchStats = useCallback(async () => {
     try {
       const response = (await axiosWrapper(
@@ -127,41 +153,33 @@ export default function LogsTable() {
 
       if (response.success) {
         setStats(response.data);
-
-
-
       }
     } catch (err) {
       console.error("Failed to fetch stats:", err);
     }
   }, [token]);
 
-  // Fetch logs with filters
   const fetchLogs = useCallback(
     async (
       pageNumber: number,
       pageSize: number,
       level: string,
-
       message: string,
       start: string,
-      end: string
+      end: string,
+      skipLoading = false
     ) => {
       try {
-        setLoading(true);
-        setError(null);
+        if (!skipLoading) setLoading(true);
 
         const params = new URLSearchParams({
           page: pageNumber.toString(),
           limit: pageSize.toString(),
           ...(level && { level }),
-
           ...(message && { message }),
           ...(start && { startDate: start }),
           ...(end && { endDate: end }),
         });
-
-        console.log("Fetching logs with params:", params.toString());
 
         const response = (await axiosWrapper(
           "get",
@@ -170,306 +188,67 @@ export default function LogsTable() {
           token ?? undefined
         )) as ApiResponse;
 
-        console.log("Logs response:", response);
-
         if (response.success) {
           setLogs(response.data || []);
           setTotalRows(response.meta?.total || 0);
         }
       } catch (err: any) {
         console.error("Failed to fetch logs:", err);
-        setError(err?.message || "Failed to fetch logs");
-        toast.error("Failed to fetch logs");
+        if (!skipLoading) toast.error("Failed to fetch logs");
       } finally {
-        setLoading(false);
+        if (!skipLoading) setLoading(false);
       }
     },
     [token]
   );
 
-  // Initial load
   useEffect(() => {
     if (token) {
       fetchStats();
-      fetchLogs(
-        pagination.page,
-        pagination.limit,
-        selectedLevel,
-
-        searchMessage,
-        startDate,
-        endDate
-      );
+      fetchLogs(pagination.page, pagination.limit, selectedLevel, searchMessage, startDate, endDate);
     }
-  }, [
-    token,
-    pagination.page,
-    pagination.limit,
-    selectedLevel,
+  }, [token, pagination.page, pagination.limit, selectedLevel, searchMessage, startDate, endDate, fetchLogs, fetchStats]);
 
-    searchMessage,
-    startDate,
-    endDate,
-  ]);
-
-  // Sync temp filters when popover opens
+  // Auto Refresh Logic
   useEffect(() => {
-    if (anchorEl) {
-      setTempSelectedLevel(selectedLevel);
-
-      setTempSearchMessage(searchMessage);
-      setTempStartDate(startDate);
-      setTempEndDate(endDate);
+    if (isAutoRefresh) {
+      autoRefreshIntervalRef.current = setInterval(() => {
+        fetchLogs(pagination.page, pagination.limit, selectedLevel, searchMessage, startDate, endDate, true);
+        fetchStats();
+      }, 5000); // 5 seconds
+    } else {
+      if (autoRefreshIntervalRef.current) {
+        clearInterval(autoRefreshIntervalRef.current);
+      }
     }
-  }, [anchorEl, selectedLevel, , searchMessage, startDate, endDate]);
-
-  // Skeleton rows for loading state
-  const skeletonRows: LogEntry[] = Array.from({ length: pagination.limit }).map(
-    (_, i) => ({
-      _id: `skeleton-${i}`,
-      timestamp: "",
-      level: "info",
-      message: "",
-
-    })
-  );
-
-  // Format timestamp
-  const formatTimestamp = (timestamp: string) => {
-    try {
-      return format(new Date(timestamp), "MMM dd, yyyy HH:mm:ss");
-    } catch {
-      return timestamp;
-    }
-  };
-
-  // Get level badge with proper styling
-  const getLevelBadge = (level: string) => {
-    const levelColors: { [key: string]: { bg: string; text: string } } = {
-      info: { bg: "bg-blue-100", text: "text-blue-800" },
-      warn: { bg: "bg-yellow-100", text: "text-yellow-800" },
-      error: { bg: "bg-red-100", text: "text-red-800" },
-      debug: { bg: "bg-gray-100", text: "text-gray-800" },
+    return () => {
+      if (autoRefreshIntervalRef.current) clearInterval(autoRefreshIntervalRef.current);
     };
+  }, [isAutoRefresh, fetchLogs, fetchStats, pagination, selectedLevel, searchMessage, startDate, endDate]);
 
-    const colors = levelColors[level] || levelColors.debug;
 
-    return (
-      <span
-        className={`px-3 py-1 rounded-full text-xs font-semibold uppercase ${colors.bg} ${colors.text}`}
-      >
-        {level}
-      </span>
-    );
-  };
-
-  // Truncate message for table view
-  const truncateMessage = (message: string, maxLength: number = 80) => {
-    if (message.length <= maxLength) return message;
-    return message.substring(0, maxLength) + "...";
-  };
-
-  // Table columns
-  const columns: TableColumn<LogEntry>[] = [
-    {
-      name: "Timestamp",
-      selector: (row) => row.timestamp,
-      cell: (row) =>
-        row._id.startsWith("skeleton") ? (
-          <Skeleton variant="text" width={150} animation="wave" />
-        ) : (
-          <div className="text-sm text-gray-600 font-mono">
-            {formatTimestamp(row.timestamp)}
-          </div>
-        ),
-      sortable: true,
-      minWidth: "180px",
-    },
-    {
-      name: "Level",
-      selector: (row) => row.level,
-      cell: (row) =>
-        row._id.startsWith("skeleton") ? (
-          <Skeleton variant="text" width={60} animation="wave" />
-        ) : (
-          getLevelBadge(row.level)
-        ),
-      sortable: true,
-      minWidth: "100px",
-    },
-
-    {
-      name: "Message",
-      selector: (row) => row.message,
-      cell: (row) =>
-        row._id.startsWith("skeleton") ? (
-          <Skeleton variant="text" width={300} animation="wave" />
-        ) : (
-          <div className="text-sm text-gray-700">
-            {truncateMessage(row.message)}
-          </div>
-        ),
-      minWidth: "350px",
-      wrap: true,
-    },
-    {
-      name: "Action",
-      button: true,
-      cell: (row) =>
-        row._id.startsWith("skeleton") ? (
-          <Skeleton variant="rectangular" width={40} height={30} />
-        ) : (
-          <IconButton
-            size="small"
-            onClick={() => handleViewDetail(row)}
-            color="primary"
-          >
-            <VisibilityIcon fontSize="small" />
-          </IconButton>
-        ),
-      minWidth: "80px",
-      maxWidth: "100px",
-      ignoreRowClick: true,
-      allowOverflow: true,
-    },
-  ];
-
-  // Handlers
-  const handleViewDetail = (log: LogEntry) => {
-    setDetailDialog({ open: true, log });
-  };
-
-  const handleFilterClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleFilterClose = () => {
-    setAnchorEl(null);
-  };
-
-  const handleApplyFilters = () => {
-    setSelectedLevel(tempSelectedLevel);
-
-    setSearchMessage(tempSearchMessage);
-    setStartDate(tempStartDate);
-    setEndDate(tempEndDate);
-    setPagination((prev) => ({ ...prev, page: 1 }));
-    handleFilterClose();
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await Promise.all([
+      fetchLogs(pagination.page, pagination.limit, selectedLevel, searchMessage, startDate, endDate),
+      fetchStats()
+    ]);
+    setTimeout(() => setIsRefreshing(false), 500);
+    toast.success("Logs refreshed");
   };
 
   const handleClearFilters = () => {
     setSelectedLevel("");
-
     setSearchMessage("");
     setStartDate("");
     setEndDate("");
-    setTempSelectedLevel("");
-
-    setTempSearchMessage("");
-    setTempStartDate("");
-    setTempEndDate("");
     setPagination((prev) => ({ ...prev, page: 1 }));
-  };
-
-  const handleRemoveFilter = (filterType: string) => {
-    switch (filterType) {
-      case "level":
-        setSelectedLevel("");
-        break;
-
-      case "message":
-        setSearchMessage("");
-        break;
-      case "dateRange":
-        setStartDate("");
-        setEndDate("");
-        break;
-    }
-    setPagination((prev) => ({ ...prev, page: 1 }));
-  };
-
-  const getFilterLabel = (type: string, value: string) => {
-    switch (type) {
-      case "level":
-        return `Level: ${value.toUpperCase()}`;
-
-      case "message":
-        return `Search: "${value}"`;
-      case "dateRange":
-        return `Date Range: ${value}`;
-      default:
-        return "";
-    }
-  };
-
-  const hasFilters =
-    selectedLevel || searchMessage || startDate || endDate;
-
-  const handlePageChange = (page: number) => {
-    setPagination((prev) => ({ ...prev, page }));
-  };
-
-  const handlePerRowsChange = (newLimit: number, page: number) => {
-    setPagination({ page, limit: newLimit });
-  };
-
-  const handleRefresh = () => {
-    fetchLogs(
-      pagination.page,
-      pagination.limit,
-      selectedLevel,
-
-      searchMessage,
-      startDate,
-      endDate
-    );
-    fetchStats();
-    toast.success("Logs refreshed");
-  };
-
-  const handleExport = async (format: "json" | "csv") => {
-    try {
-      const params = new URLSearchParams({
-        format,
-        ...(selectedLevel && { level: selectedLevel }),
-
-        ...(startDate && { startDate }),
-        ...(endDate && { endDate }),
-      });
-
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}${LOG_API.EXPORT_LOGS}?${params.toString()}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      if (!response.ok) throw new Error("Export failed");
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `logs-${Date.now()}.${format}`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-
-      toast.success(`Logs exported as ${format.toUpperCase()}`);
-    } catch (err) {
-      console.error("Export failed:", err);
-      toast.error("Failed to export logs");
-    }
   };
 
   const handleClearLogs = async () => {
     try {
       const params = new URLSearchParams({
         ...(selectedLevel && { level: selectedLevel }),
-
         ...(startDate && { beforeDate: endDate || new Date().toISOString() }),
       });
 
@@ -482,421 +261,464 @@ export default function LogsTable() {
 
       if (response.success) {
         toast.success(response.message);
-        setClearDialog(false);
+        setClearDialogOpen(false);
         handleRefresh();
       }
     } catch (err: any) {
-      console.error("Failed to clear logs:", err);
       toast.error(err?.response?.data?.message || "Failed to clear logs");
     }
   };
 
-  const open = Boolean(anchorEl);
-  const id = open ? "filter-popover" : undefined;
+  // Export Functionality
+  const handleExport = (type: 'csv' | 'json') => {
+    if (!logs.length) return;
+
+    const timestamp = format(new Date(), "yyyy-MM-dd_HH-mm");
+    const filename = `system_logs_${timestamp}`;
+
+    if (type === 'json') {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(logs, null, 2));
+      const downloadAnchorNode = document.createElement('a');
+      downloadAnchorNode.setAttribute("href", dataStr);
+      downloadAnchorNode.setAttribute("download", filename + ".json");
+      document.body.appendChild(downloadAnchorNode);
+      downloadAnchorNode.click();
+      downloadAnchorNode.remove();
+    } else if (type === 'csv') {
+      const headers = ["ID", "Timestamp", "Level", "Message", "Meta"];
+      const csvContent = "data:text/csv;charset=utf-8,"
+        + headers.join(",") + "\n"
+        + logs.map(row => {
+          const metaStr = row.meta ? JSON.stringify(row.meta).replace(/"/g, '""') : "";
+          return `"${row._id}","${row.timestamp}","${row.level}","${row.message.replace(/"/g, '""')}","${metaStr}"`;
+        }).join("\n");
+
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", filename + ".csv");
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    }
+    setAnchorEl(null);
+    toast.success(`Exported ${logs.length} logs to ${type.toUpperCase()}`);
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success("Copied to clipboard");
+  };
+
+  const getLevelBadge = (level: string) => {
+    const styles = {
+      info: "bg-blue-50 text-blue-700 border-blue-200",
+      warn: "bg-amber-50 text-amber-700 border-amber-200",
+      error: "bg-red-50 text-red-700 border-red-200",
+      debug: "bg-gray-50 text-gray-700 border-gray-200",
+      success: "bg-green-50 text-green-700 border-green-200",
+    };
+    const style = styles[level as keyof typeof styles] || styles.debug;
+
+    return (
+      <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border ${style}`}>
+        {level}
+      </span>
+    );
+  };
+
+  const getStatCount = (map: Record<string, number> | undefined, key: string) => {
+    if (!map) return 0;
+    return map[key] || map[key.toUpperCase()] || map[key.toLowerCase()] || 0;
+  };
+
+  // Custom Loading Skeleton
+  const LoadingSkeleton = () => (
+    <div className="p-4 space-y-4">
+      {Array(8).fill(0).map((_, i) => (
+        <div key={i} className="flex items-center gap-4 py-1">
+          <Skeleton variant="rounded" width={60} height={20} />
+          <div className="flex-col gap-1 w-24">
+            <Skeleton variant="text" width={80} />
+          </div>
+          <Skeleton variant="text" sx={{ flex: 1 }} />
+          <Skeleton variant="circular" width={20} height={20} />
+        </div>
+      ))}
+    </div>
+  );
+
+  const columns: TableColumn<LogEntry>[] = [
+    {
+      name: "Status",
+      selector: (row) => row.level,
+      cell: (row) => getLevelBadge(row.level),
+      width: "90px",
+    },
+    {
+      name: "Timestamp",
+      selector: (row) => row.timestamp,
+      cell: (row) => (
+        <span className="text-xs font-mono text-gray-500">
+          {format(new Date(row.timestamp), "MMM dd HH:mm:ss")}
+        </span>
+      ),
+      width: "140px",
+      sortable: true,
+    },
+    {
+      name: "Message",
+      selector: (row) => row.message,
+      cell: (row) => (
+        <div className="py-2">
+          <p className="text-sm text-gray-700 truncate font-medium max-w-xl" title={row.message}>
+            {row.message}
+          </p>
+        </div>
+      ),
+      grow: 1,
+    },
+    {
+      name: "",
+      cell: (row) => (
+        <div className="flex justify-end w-full">
+          <button
+            onClick={(e) => { e.stopPropagation(); setDetailDialog({ open: true, log: row }); }}
+            className="p-1.5 hover:bg-gray-100 text-gray-400 hover:text-blue-600 rounded transition-colors"
+          >
+            <Eye size={16} />
+          </button>
+        </div>
+      ),
+      width: "60px",
+    },
+  ];
 
   return (
-    <>
-      <Box sx={{ padding: 3 }}>
-        {/* Header Section */}
-        <div className="flex justify-between items-center pb-6">
-          <div>
-            <h3 className="text-2xl text-gray-900 font-semibold">
-              System Logs
-            </h3>
-            <p className="text-sm text-gray-500 mt-1">
-              Monitor and analyze application logs
-            </p>
+    <div className="p-6 bg-[#f8fafc] min-h-screen space-y-6 max-w-[1600px] mx-auto">
+      {/* Compact Header & Stats Panel */}
+      <div className="bg-white border border-gray-200 rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <h1 className="text-lg font-bold text-gray-900">System Logs</h1>
+            <div className="w-px h-4 bg-gray-200"></div>
+
+            {/* Auto Refresh Toggle */}
+            <button
+              onClick={() => setIsAutoRefresh(!isAutoRefresh)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${isAutoRefresh
+                  ? 'bg-green-50 text-green-700 border border-green-200'
+                  : 'bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100'
+                }`}
+            >
+              {isAutoRefresh ? (
+                <>
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                  </span>
+                  Live
+                </>
+              ) : (
+                <>
+                  <div className="h-2 w-2 rounded-full bg-gray-400"></div>
+                  Paused
+                </>
+              )}
+            </button>
           </div>
-          <Stack direction="row" spacing={1.5} alignItems="center">
-            <IconButton
-              aria-label="refresh"
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={(e) => setAnchorEl(e.currentTarget)}
+              className="px-3 py-1.5 bg-white border border-gray-200 text-gray-600 rounded-lg text-xs font-bold hover:bg-gray-50 flex items-center gap-2 shadow-sm"
+            >
+              <Download size={14} />
+              Export
+            </button>
+
+            <button
               onClick={handleRefresh}
-              color="primary"
-              size="small"
+              className={`p-1.5 hover:bg-gray-50 rounded-lg text-gray-500 hover:text-gray-900 transition-all ${isRefreshing ? 'opacity-70' : ''}`}
             >
-              <RefreshIcon />
-            </IconButton>
-
-
-            <Button
-              variant="outlined"
-              size="small"
-              color="error"
-              startIcon={<DeleteSweepIcon />}
-              onClick={() => setClearDialog(true)}
-              disabled={!hasFilters}
+              <RefreshCw size={16} className={`${isRefreshing ? "animate-spin" : ""}`} />
+            </button>
+            <div className="w-px h-4 bg-gray-200 mx-1"></div>
+            <button
+              onClick={() => setClearDialogOpen(true)}
+              disabled={!stats?.total}
+              className="text-xs font-semibold text-red-600 hover:text-red-700 hover:underline disabled:opacity-50 disabled:no-underline"
             >
-              Clear
-            </Button>
-            <IconButton
-              aria-label="filter"
-              onClick={handleFilterClick}
-              size="small"
-            >
-              <FilterListIcon />
-            </IconButton>
-          </Stack>
+              Clear Data
+            </button>
+          </div>
         </div>
 
-        {/* Statistics Cards - Fixed Grid */}
         {stats && (
-          <Grid container spacing={2} sx={{ mb: 3 }}>
-            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-              <Card sx={{ height: '100%' }}>
-                <CardContent>
-                  <Typography
-                    color="textSecondary"
-                    gutterBottom
-                    variant="body2"
-                    sx={{ fontSize: '0.75rem', fontWeight: 500 }}
-                  >
-                    Total Logs
-                  </Typography>
-                  <Typography variant="h5" className="font-bold">
-                    {stats.total.toLocaleString()}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
+          <div className="grid grid-cols-2 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-gray-100 bg-white">
+            <div className="p-5 flex items-center gap-4 group hover:bg-gray-50/50 transition-colors">
+              <div className="p-3 bg-blue-50 text-blue-600 rounded-lg group-hover:bg-blue-100 transition-colors">
+                <Server size={20} />
+              </div>
+              <div>
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Total Volume</p>
+                <div className="flex items-baseline gap-2">
+                  <h3 className="text-2xl font-bold text-gray-900 leading-none">{stats.total.toLocaleString()}</h3>
+                </div>
+              </div>
+            </div>
 
-            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-              <Card sx={{ height: '100%' }}>
-                <CardContent>
-                  <Typography
-                    color="textSecondary"
-                    gutterBottom
-                    variant="body2"
-                    sx={{ fontSize: '0.75rem', fontWeight: 500 }}
-                  >
-                    Today&apos;s Logs
-                  </Typography>
-                  <Typography variant="h5" className="font-bold text-blue-600">
-                    {stats.todayCount.toLocaleString()}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
+            <div className="p-5 flex items-center gap-4 group hover:bg-gray-50/50 transition-colors">
+              <div className="p-3 bg-purple-50 text-purple-600 rounded-lg group-hover:bg-purple-100 transition-colors">
+                <Activity size={20} />
+              </div>
+              <div>
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Today</p>
+                <div className="flex items-baseline gap-2">
+                  <h3 className="text-2xl font-bold text-gray-900 leading-none">{stats.todayCount.toLocaleString()}</h3>
+                </div>
+              </div>
+            </div>
 
-            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-              <Card sx={{ height: '100%' }}>
-                <CardContent>
-                  <Typography
-                    color="textSecondary"
-                    gutterBottom
-                    variant="body2"
-                    sx={{ fontSize: '0.75rem', fontWeight: 500 }}
-                  >
-                    Errors (24h)
-                  </Typography>
-                  <Typography variant="h5" className="font-bold text-red-600">
-                    {stats.errorCount24h.toLocaleString()}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
+            <div className="p-5 flex items-center gap-4 group hover:bg-gray-50/50 transition-colors">
+              <div className={`p-3 rounded-lg transition-colors ${stats.errorCount24h > 0 ? 'bg-red-50 text-red-600 group-hover:bg-red-100' : 'bg-green-50 text-green-600'}`}>
+                {stats.errorCount24h > 0 ? <Zap size={20} /> : <CheckCircle2 size={20} />}
+              </div>
+              <div>
+                <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Critical Errors</p>
+                <div className="flex items-baseline gap-2">
+                  <h3 className={`text-2xl font-bold leading-none ${stats.errorCount24h > 0 ? 'text-red-600' : 'text-gray-900'}`}>{stats.errorCount24h.toLocaleString()}</h3>
+                  <span className="text-[10px] text-gray-400 font-medium">Last 24h</span>
+                </div>
+              </div>
+            </div>
 
-            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-              <Card sx={{ height: '100%' }}>
-                <CardContent>
-                  <Typography
-                    color="textSecondary"
-                    gutterBottom
-                    variant="body2"
-                    sx={{ fontSize: '0.75rem', fontWeight: 500, mb: 1 }}
-                  >
-                    By Level
-                  </Typography>
-                  <Stack direction="row" spacing={0.5} flexWrap="wrap" gap={0.5}>
-                    {Object.entries(stats.byLevel).map(([level, count]) => (
-                      <Chip
-                        key={level}
-                        label={`${level}: ${count}`}
-                        size="small"
-                        variant="outlined"
-                        sx={{ fontSize: '0.7rem', height: '24px' }}
-                      />
-                    ))}
-                  </Stack>
-                </CardContent>
-              </Card>
-            </Grid>
-          </Grid>
+            <div className="p-5 flex flex-col justify-center gap-2">
+              <div className="flex items-center justify-between text-xs mb-1">
+                <span className="font-semibold text-gray-500">Distribution</span>
+              </div>
+              <div className="flex h-2.5 w-full rounded-full overflow-hidden bg-gray-100">
+                <div className="bg-red-500 h-full" style={{ width: `${(getStatCount(stats.byLevel, 'error') / stats.total) * 100}%` }} title="Errors"></div>
+                <div className="bg-amber-400 h-full" style={{ width: `${(getStatCount(stats.byLevel, 'warn') / stats.total) * 100}%` }} title="Warnings"></div>
+                <div className="bg-blue-500 h-full flex-1" title="Info"></div>
+              </div>
+              <div className="flex items-center gap-3 text-[10px] font-medium text-gray-500">
+                <span className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-red-500"></div> {getStatCount(stats.byLevel, 'error')} Err</span>
+                <span className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-amber-400"></div> {getStatCount(stats.byLevel, 'warn')} Wrn</span>
+                <span className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div> {getStatCount(stats.byLevel, 'info')} Info</span>
+              </div>
+            </div>
+          </div>
         )}
+      </div>
 
-        {/* Active Filters */}
-        {hasFilters && (
-          <Stack
-            direction="row"
-            spacing={1}
-            sx={{ mb: 2, flexWrap: "wrap", gap: 1 }}
-          >
-            {selectedLevel && (
-              <Chip
-                label={getFilterLabel("level", selectedLevel)}
-                onDelete={() => handleRemoveFilter("level")}
-                deleteIcon={<ClearIcon />}
-                color="primary"
-                variant="outlined"
-                size="small"
-              />
-            )}
-
-            {searchMessage && (
-              <Chip
-                label={getFilterLabel("message", searchMessage)}
-                onDelete={() => handleRemoveFilter("message")}
-                deleteIcon={<ClearIcon />}
-                color="primary"
-                variant="outlined"
-                size="small"
-              />
-            )}
-            {(startDate || endDate) && (
-              <Chip
-                label={getFilterLabel(
-                  "dateRange",
-                  `${startDate || "Start"} - ${endDate || "End"}`
-                )}
-                onDelete={() => handleRemoveFilter("dateRange")}
-                deleteIcon={<ClearIcon />}
-                color="primary"
-                variant="outlined"
-                size="small"
-              />
-            )}
-            <Chip
-              label="Clear All"
-              onClick={handleClearFilters}
-              color="default"
-              variant="outlined"
-              size="small"
+      {/* Main Table Card */}
+      <div className="bg-white border border-gray-200 rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.04)] overflow-hidden flex flex-col min-h-[500px]">
+        {/* Compact Filters */}
+        <div className="px-4 py-3 border-b border-gray-100 bg-white flex items-center justify-between sticky top-0 z-20">
+          <div className="relative max-w-md w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
+            <input
+              className="w-full pl-9 pr-4 py-1.5 bg-gray-50 border border-gray-200 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all placeholder:text-gray-400"
+              placeholder="Filter logs..."
+              value={searchMessage}
+              onChange={(e) => setSearchMessage(e.target.value)}
             />
-          </Stack>
-        )}
+          </div>
 
-        {/* Filter Popover */}
-        <Popover
-          id={id}
-          open={open}
-          anchorEl={anchorEl}
-          onClose={handleFilterClose}
-          anchorOrigin={{
-            vertical: "bottom",
-            horizontal: "right",
-          }}
-          transformOrigin={{
-            vertical: "top",
-            horizontal: "right",
-          }}
-          PaperProps={{
-            sx: { p: 3, width: 450 },
-          }}
-        >
-          <Typography variant="h6" sx={{ mb: 2 }}>
-            Filter Logs
-          </Typography>
-          <Stack spacing={2.5}>
-            <FormControl fullWidth size="small">
-              <InputLabel id="level-filter-label">Log Level</InputLabel>
-              <Select
-                labelId="level-filter-label"
-                value={tempSelectedLevel}
-                label="Log Level"
-                onChange={(e) => setTempSelectedLevel(e.target.value as string)}
+          <div className="flex items-center gap-2">
+            <select
+              className="pl-3 pr-8 py-1.5 bg-white border border-gray-200 rounded-md text-xs font-medium cursor-pointer hover:border-gray-300 focus:ring-2 focus:ring-blue-500 outline-none"
+              value={selectedLevel}
+              onChange={(e) => setSelectedLevel(e.target.value)}
+            >
+              <option value="">All Levels</option>
+              {LOG_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+            </select>
+
+            <input
+              type="date"
+              className="px-3 py-1.5 bg-white border border-gray-200 rounded-md text-xs font-medium cursor-pointer hover:border-gray-300 outline-none text-gray-600"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+            />
+
+            {(selectedLevel || searchMessage || startDate || endDate) && (
+              <button
+                onClick={handleClearFilters}
+                className="p-1.5 hover:bg-gray-100 rounded text-gray-500"
+                title="Clear filters"
               >
-                <MenuItem value="">
-                  <em>All Levels</em>
-                </MenuItem>
-                {LOG_LEVELS.map((level) => (
-                  <MenuItem key={level} value={level}>
-                    <span className="capitalize">{level}</span>
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-
-
-            <TextField
-              fullWidth
-              size="small"
-              label="Search in Message"
-              placeholder="Enter keywords..."
-              value={tempSearchMessage}
-              onChange={(e) => setTempSearchMessage(e.target.value)}
-            />
-
-            <Divider />
-
-            <TextField
-              fullWidth
-              size="small"
-              label="Start Date"
-              type="datetime-local"
-              value={tempStartDate}
-              onChange={(e) => setTempStartDate(e.target.value)}
-              InputLabelProps={{
-                shrink: true,
-              }}
-            />
-
-            <TextField
-              fullWidth
-              size="small"
-              label="End Date"
-              type="datetime-local"
-              value={tempEndDate}
-              onChange={(e) => setTempEndDate(e.target.value)}
-              InputLabelProps={{
-                shrink: true,
-              }}
-            />
-
-            <Stack direction="row" spacing={2} justifyContent="flex-end">
-              <Button variant="outlined" onClick={handleFilterClose}>
-                Cancel
-              </Button>
-              <Button variant="contained" onClick={handleApplyFilters}>
-                Apply Filters
-              </Button>
-            </Stack>
-          </Stack>
-        </Popover>
+                <X size={14} />
+              </button>
+            )}
+          </div>
+        </div>
 
         {/* Data Table */}
-        <DataTable
-          columns={columns}
-          data={loading ? skeletonRows : logs}
-          customStyles={customStyles}
-          pagination
-          paginationServer
-          paginationTotalRows={totalRows}
-          paginationDefaultPage={pagination.page}
-          paginationPerPage={pagination.limit}
-          paginationRowsPerPageOptions={[25, 50, 100, 200]}
-          onChangePage={handlePageChange}
-          onChangeRowsPerPage={handlePerRowsChange}
-          highlightOnHover
-          striped
-          dense
-          persistTableHead
-          progressPending={false}
-          noDataComponent={
-            error ? (
-              <Typography color="error" sx={{ py: 4, textAlign: "center" }}>
-                ⚠️ {error}
-              </Typography>
-            ) : !loading && logs.length === 0 ? (
-              <Typography sx={{ py: 4, textAlign: "center", color: "gray" }}>
-                📝 No logs found. Try adjusting your filters!
-              </Typography>
-            ) : null
-          }
-        />
-      </Box>
+        <div className="relative flex-1">
+          {loading && (
+            <div className="absolute inset-0 bg-white z-10 transition-opacity duration-200">
+              <LoadingSkeleton />
+            </div>
+          )}
 
-      {/* Log Detail Dialog */}
+          <DataTable
+            columns={columns}
+            data={logs}
+            pagination
+            paginationServer
+            paginationTotalRows={totalRows}
+            paginationDefaultPage={pagination.page}
+            paginationPerPage={pagination.limit}
+            paginationRowsPerPageOptions={[25, 50, 100]}
+            onChangePage={(page) => setPagination(prev => ({ ...prev, page }))}
+            onChangeRowsPerPage={(limit) => setPagination(prev => ({ ...prev, limit, page: 1 }))}
+            customStyles={customStyles}
+            highlightOnHover
+            pointerOnHover
+            responsive
+            striped={false}
+            onRowClicked={(row) => setDetailDialog({ open: true, log: row })}
+            noDataComponent={
+              <div className="py-20 flex flex-col items-center justify-center text-gray-400">
+                <Search size={32} className="mb-3 opacity-20" />
+                <p className="text-sm font-medium">No system logs found</p>
+              </div>
+            }
+          />
+        </div>
+      </div>
+
+      {/* Export Menu */}
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={() => setAnchorEl(null)}
+        PaperProps={{
+          style: { borderRadius: '12px', marginTop: '8px', boxShadow: '0 10px 30px -10px rgba(0,0,0,0.1)' }
+        }}
+      >
+        <MenuItem onClick={() => handleExport('csv')} className="text-sm gap-2 text-gray-700">
+          <ListItemIcon style={{ minWidth: 'auto' }}>
+            <FileSpreadsheet size={16} />
+          </ListItemIcon>
+          <ListItemText primary="Export as CSV" primaryTypographyProps={{ fontSize: '0.875rem' }} />
+        </MenuItem>
+        <MenuItem onClick={() => handleExport('json')} className="text-sm gap-2 text-gray-700">
+          <ListItemIcon style={{ minWidth: 'auto' }}>
+            <FileJson size={16} />
+          </ListItemIcon>
+          <ListItemText primary="Export as JSON" primaryTypographyProps={{ fontSize: '0.875rem' }} />
+        </MenuItem>
+      </Menu>
+
+      {/* Dialogs remain similar but cleaner */}
       <Dialog
         open={detailDialog.open}
         onClose={() => setDetailDialog({ open: false, log: null })}
         maxWidth="md"
         fullWidth
+        PaperProps={{
+          style: { borderRadius: '12px' }
+        }}
       >
-        <DialogTitle>
-          <div className="flex justify-between items-center">
-            <span>Log Details</span>
-            {detailDialog.log && getLevelBadge(detailDialog.log.level)}
-          </div>
-        </DialogTitle>
-        <DialogContent dividers>
-          {detailDialog.log && (
-            <Stack spacing={2}>
-              <Box>
-                <Typography variant="subtitle2" color="textSecondary">
-                  Timestamp
-                </Typography>
-                <Typography variant="body1" className="font-mono">
-                  {formatTimestamp(detailDialog.log.timestamp)}
-                </Typography>
-              </Box>
+        {detailDialog.log && (
+          <div className="bg-white">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-bold text-gray-900">Log Details</span>
+                <span className="text-xs font-mono text-gray-400">#{detailDialog.log._id.slice(-8)}</span>
+              </div>
+              <button
+                onClick={() => setDetailDialog({ open: false, log: null })}
+                className="text-gray-400 hover:text-gray-900"
+              >
+                <X size={18} />
+              </button>
+            </div>
 
-              <Divider />
+            <DialogContent className="p-6">
+              <div className="space-y-6">
+                <div>
+                  <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Message</h4>
+                  <div className="p-4 bg-gray-50 rounded-lg border border-gray-100 text-sm font-mono text-gray-800 break-words relative group">
+                    {detailDialog.log.message}
+                    <button
+                      onClick={() => copyToClipboard(detailDialog.log!.message)}
+                      className="absolute top-2 right-2 p-1.5 bg-white shadow-sm border border-gray-200 rounded opacity-0 group-hover:opacity-100 transition-opacity text-gray-400 hover:text-blue-600"
+                    >
+                      <Copy size={12} />
+                    </button>
+                  </div>
+                </div>
 
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Metadata</h4>
+                    <div className="flex items-center gap-2 text-sm text-gray-700">
+                      {getLevelBadge(detailDialog.log.level)}
+                      <span className="text-gray-300">|</span>
+                      <span className="font-mono">{format(new Date(detailDialog.log.timestamp), "yyyy-MM-dd HH:mm:ss")}</span>
+                    </div>
+                  </div>
+                </div>
 
-
-              <Divider />
-
-              <Box>
-                <Typography variant="subtitle2" color="textSecondary">
-                  Level
-                </Typography>
-                <Box sx={{ mt: 1 }}>
-                  {getLevelBadge(detailDialog.log.level)}
-                </Box>
-              </Box>
-
-              <Divider />
-
-              <Box>
-                <Typography variant="subtitle2" color="textSecondary">
-                  Message
-                </Typography>
-                <Typography
-                  variant="body1"
-                  className="bg-gray-50 p-3 rounded mt-1"
-                  sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}
-                >
-                  {detailDialog.log.message}
-                </Typography>
-              </Box>
-
-              {detailDialog.log.meta &&
-                Object.keys(detailDialog.log.meta).length > 0 && (
-                  <>
-                    <Divider />
-                    <Box>
-                      <Typography variant="subtitle2" color="textSecondary" sx={{ mb: 1 }}>
-                        Additional Metadata
-                      </Typography>
-                      <Box className="bg-gray-900 text-green-400 p-3 rounded font-mono text-sm overflow-x-auto">
-                        <pre>{JSON.stringify(detailDialog.log.meta, null, 2)}</pre>
-                      </Box>
-                    </Box>
-                  </>
+                {detailDialog.log.meta && Object.keys(detailDialog.log.meta).length > 0 && (
+                  <div>
+                    <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2 flex items-center justify-between">
+                      <span>Payload</span>
+                      <button
+                        onClick={() => copyToClipboard(JSON.stringify(detailDialog.log!.meta, null, 2))}
+                        className="text-[10px] text-blue-600 font-bold hover:underline"
+                      >
+                        COPY JSON
+                      </button>
+                    </h4>
+                    <div className="bg-[#1e1e1e] rounded-lg p-4 overflow-x-auto">
+                      <pre className="text-xs font-mono text-gray-300">
+                        {JSON.stringify(detailDialog.log.meta, null, 2)}
+                      </pre>
+                    </div>
+                  </div>
                 )}
-
-              <Divider />
-
-              <Box>
-                <Typography variant="subtitle2" color="textSecondary">
-                  Log ID
-                </Typography>
-                <Typography variant="body2" className="font-mono text-gray-600">
-                  {detailDialog.log._id}
-                </Typography>
-              </Box>
-            </Stack>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDetailDialog({ open: false, log: null })}>
-            Close
-          </Button>
-        </DialogActions>
+              </div>
+            </DialogContent>
+          </div>
+        )}
       </Dialog>
 
-      {/* Clear Logs Confirmation Dialog */}
-      <ConfirmDialog
-        open={clearDialog}
-        title="Clear Logs"
-        message={`Are you sure you want to clear logs with the current filters? This action cannot be undone.${!hasFilters
-            ? " Please apply at least one filter to avoid clearing all logs."
-            : ""
-          }`}
-        onConfirm={handleClearLogs}
-        onCancel={() => setClearDialog(false)}
-
-      />
-    </>
+      {/* Clear Dialog */}
+      <Dialog
+        open={clearDialogOpen}
+        onClose={() => setClearDialogOpen(false)}
+        maxWidth="xs"
+        PaperProps={{ style: { borderRadius: '12px' } }}
+      >
+        <div className="p-6 text-center">
+          <div className="w-10 h-10 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Trash2 size={20} />
+          </div>
+          <h3 className="font-bold text-gray-900 mb-2">Clear Logs?</h3>
+          <p className="text-xs text-gray-500 mb-6">
+            Permanently delete logs {selectedLevel ? `matching "${selectedLevel}"` : ""}.
+          </p>
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={() => setClearDialogOpen(false)}
+              className="px-4 py-2 text-xs font-bold text-gray-600 hover:bg-gray-50 rounded-lg border border-gray-200"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleClearLogs}
+              className="px-4 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg"
+            >
+              Confirm
+            </button>
+          </div>
+        </div>
+      </Dialog>
+    </div>
   );
 }
