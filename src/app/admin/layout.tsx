@@ -14,7 +14,6 @@ import Breadcrumbs from '@/components/Breadcrumb/Breadcrumb';
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const { isLoggedIn, user } = useSelector((state: RootState) => state.auth);
   const router = useRouter();
-  const { collapsed } = useSelector((state: RootState) => state.theme);
   const { setUserId, connected } = useSocket();
   const { showLoader, hideLoader } = useLoader();
 
@@ -25,7 +24,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   }, [isLoggedIn, user, router, showLoader]);
 
 
-  // Initialize socket with user ID when user is available
   useEffect(() => {
     if (user && user._id) {
       console.log('Initializing socket for ADMIN:', user._id);
@@ -34,25 +32,23 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   }, [user, setUserId]);
 
   return (
-    <div className="layout_admin flex ">
-      <div className={``}>
-        <Sidebar />
-      </div>
-      <div className={` relative transition-all duration-300   z-9 lg:z-9  w-full  ${collapsed ? "lg:ml-[110px] lg:w-[calc(100%-110px)]" : "lg:ml-[260px] lg:w-[calc(100%-260px)]"}`}>
-        <MainPanel />
-        <main className="px-[24px] py-[24px] bg-gray-100 w-full min-h-[calc(100vh-97px)] pb-0">
-          {/* <AdminChatWidget /> */}
-          {/* Debug info - remove in production */}
-          {/* {process.env.NODE_ENV === 'development' && (
-            <div className="fixed top-20 right-4 bg-black text-white text-xs px-2 py-1 rounded z-50">
-              Socket: {connected ? '🟢' : '🔴'} | User ID: {user?._id || 'None'}
-            </div>
-          )} */}
+    <div className="flex h-screen overflow-hidden bg-gray-50">
+      <Sidebar />
+
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden relative transition-all duration-300">
+
+        <div className="flex-shrink-0 z-20">
+          <MainPanel />
+        </div>
+
+        <main className="flex-1 overflow-y-auto bg-gray-100 p-6 scroll-smooth">
           <Breadcrumbs />
-          {children}
+          <div className="min-h-[calc(100vh-140px)]">
+            {children}
+          </div>
+          <div className="h-6"></div>
         </main>
 
-        {/* Floating Chat Widget */}
         <FloatingChatWidget />
 
       </div>

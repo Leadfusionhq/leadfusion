@@ -30,26 +30,34 @@ export const LoaderProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     <LoaderContext.Provider value={{ showLoader, hideLoader, isLoading, loaderText }}>
       {children}
       {isLoading && (
-        <div className="fixed inset-0 bg-gray-900/80 backdrop-blur-sm flex items-center justify-center z-[9999]">
-          {/* Modern dark loader card */}
-          <div className="bg-gray-800/90 backdrop-blur-md border border-gray-700/50 p-8 rounded-2xl shadow-2xl flex flex-col items-center max-w-sm mx-4">
-            {/* Animated loader with gradient */}
-            <div className="relative mb-6">
-              <div className="w-16 h-16 rounded-full border-4 border-gray-600/30"></div>
-              <div className="absolute top-0 left-0 w-16 h-16 rounded-full border-4 border-transparent border-t-blue-500 border-r-blue-400 animate-spin"></div>
-              {/* Inner glow effect */}
-              <div className="absolute top-2 left-2 w-12 h-12 rounded-full bg-blue-500/10 animate-pulse"></div>
-            </div>
-            
-            {/* Loading text with subtle animation */}
-            <div className="text-center">
-              <p className="text-gray-200 text-lg font-medium mb-2">{loaderText}</p>
-              <div className="flex space-x-1 justify-center">
-                <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#050505]/80 backdrop-blur-sm transition-opacity duration-300">
+          <div className="flex flex-col items-center justify-center transform transition-all duration-500 animate-in fade-in zoom-in-95">
+
+            {/* Minimalist Conic Ring Loader */}
+            <div className="relative w-20 h-20">
+              {/* Glowing Gradient Background */}
+              <div
+                className="absolute inset-0 rounded-full animate-spin bg-[conic-gradient(from_0deg,transparent_0deg,var(--primary-color)_360deg)]"
+                style={{ animationDuration: '1.5s' }}
+              ></div>
+
+              {/* Inner Cutout to create the Ring effect */}
+              {/* Matching the parent bg roughly or just generic black since backdrop is dark */}
+              <div className="absolute inset-[3px] rounded-full bg-[#050505]"></div>
+
+              {/* Optional: Central Pulse */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-2 h-2 rounded-full bg-primary-color animate-pulse shadow-[0_0_15px_var(--primary-color)]"></div>
               </div>
             </div>
+
+            {/* Elegant Typography */}
+            <div className="mt-8 text-center">
+              <p className="text-white/80 text-sm font-medium tracking-[0.25em] uppercase animate-pulse">
+                {loaderText}
+              </p>
+            </div>
+
           </div>
         </div>
       )}
