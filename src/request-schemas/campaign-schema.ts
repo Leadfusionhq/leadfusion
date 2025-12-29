@@ -13,7 +13,7 @@ export const validationSchema = Yup.object().shape({
       is: "WARM_TRANSFER",
       then: (schema) =>
         schema
-          .matches(/^\d{3}-\d{3}-\d{4}$/, "POC Phone must be in format XXX-XXX-XXXX")
+          .matches(/^[\d\s\-().+]+$/, "Invalid phone number format")
           .required("POC Phone is required for Warm Transfer"),
       otherwise: (schema) => schema.notRequired(),
     }),
@@ -21,7 +21,7 @@ export const validationSchema = Yup.object().shape({
       is: "APPOINTMENT",
       then: (schema) =>
         schema
-          .matches(/^\d{3}-\d{3}-\d{4}$/, "Company Contact Phone must be in format XXX-XXX-XXXX")
+          .matches(/^[\d\s\-().+]+$/, "Invalid phone number format")
           .required("Company Contact Phone is required for Appointment"),
       otherwise: (schema) => schema.notRequired(),
     }),
@@ -34,31 +34,18 @@ export const validationSchema = Yup.object().shape({
       otherwise: (schema) => schema.notRequired(),
     }),
     geography: Yup.object().shape({
-      // ✅ State is required only for FULL_STATE
-      state: Yup.mixed().when('coverage.type', {
-        is: 'FULL_STATE',
-        then: (schema) => schema
-          .test("is-object", "State is required for Full State coverage", (value) => value !== null && Array.isArray(value) && value.length > 0)
-          .required("State is required for Full State coverage"),
-        otherwise: (schema) => schema.nullable().notRequired()
-      }),
+      state: Yup.mixed().nullable(),
       coverage: Yup.object().shape({
         type: Yup.string().oneOf(["FULL_STATE", "PARTIAL"]).required("Coverage type is required"),
         partial: Yup.object().shape({
           counties: Yup.array(),
           radius: Yup.string(),
-          zipcode: Yup.string().matches(/^\d{5}$/, "ZIP code must be exactly 5 digits"),
-          // ✅ ZIP codes required for PARTIAL coverage
-          zip_codes: Yup.string().when('$geography.coverage.type', {
-            is: 'PARTIAL',
-            then: (schema) => schema
-              .required("ZIP codes are required for Partial coverage")
-              .matches(
-                /^(\d{5})(\|\d{5})*$/,
-                "ZIPs must be 5-digit numbers separated by '|'"
-              ),
-            otherwise: (schema) => schema.notRequired()
-          }),
+          zipcode: Yup.string().test(
+            'valid-zipcode',
+            'ZIP code must be exactly 5 digits',
+            (value) => !value || /^\d{5}$/.test(value)
+          ),
+          zip_codes: Yup.string(),
           countries: Yup.array().of(Yup.string()),
         }),
       }),
@@ -74,44 +61,16 @@ export const validationSchema = Yup.object().shape({
         .required("Delivery method is required"),
 
       email: Yup.object().shape({
-        addresses: Yup.string().when("$delivery.method", {
-          is: (method: string[]) => method.includes("email"),
-          then: (schema) =>
-            schema
-              .required("Email addresses are required")
-              .matches(
-                /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?:\s*,\s*[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})*$/,
-                "Enter valid comma separated emails"
-              ),
-          otherwise: (schema) => schema.notRequired(),
-        }),
-        subject: Yup.string().when("$delivery.method", {
-          is: (method: string[]) => method.includes("email"),
-          then: (schema) => schema.required("Email subject is required"),
-          otherwise: (schema) => schema.notRequired(),
-        }),
+        addresses: Yup.string(),
+        subject: Yup.string(),
       }),
 
       phone: Yup.object().shape({
-        numbers: Yup.string().when("$delivery.method", {
-          is: (method: string[]) => method.includes("phone"),
-          then: (schema) =>
-            schema
-              .required("Phone numbers are required")
-              .matches(
-                /^(\d{3}-\d{3}-\d{4})(\s*,\s*\d{3}-\d{3}-\d{4})*$/,
-                "Enter valid comma separated phone numbers (e.g., 123-456-7890)"
-              ),
-          otherwise: (schema) => schema.notRequired(),
-        }),
+        numbers: Yup.string(),
       }),
 
       crm: Yup.object().shape({
-        instructions: Yup.string().when("$delivery.method", {
-          is: (method: string[]) => method.includes("crm"),
-          then: (schema) => schema.required("Instructions are required for CRM"),
-          otherwise: (schema) => schema.notRequired(),
-        }),
+        instructions: Yup.string(),
       }),
 
       other: Yup.object().shape({

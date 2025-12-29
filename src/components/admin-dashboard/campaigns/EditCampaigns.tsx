@@ -44,23 +44,23 @@ const transformBackendDataToFormData = (backendData: any, statesList: State[]) =
 
     // Geography
     if (backendData.geography) {
-    if (backendData.geography.state && Array.isArray(backendData.geography.state) && statesList.length > 0) {
-      formData.geography.state = backendData.geography.state
-        .map((stateId: string) => {
-          const stateData = statesList.find((s) => s._id === stateId);
-          return stateData
-            ? {
+      if (backendData.geography.state && Array.isArray(backendData.geography.state) && statesList.length > 0) {
+        formData.geography.state = backendData.geography.state
+          .map((stateId: string) => {
+            const stateData = statesList.find((s) => s._id === stateId);
+            return stateData
+              ? {
                 label: `${stateData.name} (${stateData.abbreviation})`,
                 value: stateData._id,
                 name: stateData.name,
                 abbreviation: stateData.abbreviation,
               }
-            : null;
-        })
-        .filter(Boolean);
-    }
+              : null;
+          })
+          .filter(Boolean);
+      }
 
-      
+
 
       if (backendData.geography.coverage) {
         formData.geography.coverage.type = backendData.geography.coverage.type || "FULL_STATE";
@@ -69,9 +69,9 @@ const transformBackendDataToFormData = (backendData: any, statesList: State[]) =
           formData.geography.coverage.partial = {
             counties: Array.isArray(partial.countyDetails)
               ? partial.countyDetails.map((county: County) => ({
-                  label: `${county.name}`,
-                  value: county._id,
-                }))
+                label: `${county.name}`,
+                value: county._id,
+              }))
               : [],
             radius: partial.radius || "",
             zipcode: partial.zipcode || "",
@@ -112,17 +112,20 @@ const transformBackendDataToFormData = (backendData: any, statesList: State[]) =
 
       if (backendData.delivery.schedule) {
         const schedule = backendData.delivery.schedule;
-        
+
         formData.delivery.schedule = {
           start_time: schedule.start_time || "09:00",
           end_time: schedule.end_time || "17:00",
           timezone: schedule.timezone || "America/New_York",
           days: Array.isArray(schedule.days)
             ? schedule.days.map((day: any) => ({
-                day: day.day,
-                active: day.active !== undefined ? day.active : true,
-              }))
-            : formData.delivery.schedule.days, // fallback to default
+              day: day.day,
+              active: day.active !== undefined ? day.active : true,
+              start_time: day.start_time || null,
+              end_time: day.end_time || null,
+              cap: day.cap !== undefined ? day.cap : null,
+            }))
+            : formData.delivery.schedule.days,
         };
       }
     }
@@ -136,7 +139,7 @@ const transformBackendDataToFormData = (backendData: any, statesList: State[]) =
 
 const EditCampaign = () => {
   const token = useSelector((state: RootState) => state.auth.token);
-  const userRole = useSelector((state: RootState) => state.auth.user?.role); 
+  const userRole = useSelector((state: RootState) => state.auth.user?.role);
   const isAdmin = userRole === 'admin' || userRole === 'ADMIN';
   const { campaignId } = useParams();
 
@@ -172,7 +175,7 @@ const EditCampaign = () => {
       setActiveDeliveryTab("method");
     }
   }, [dataReady]);
-  
+
 
   useEffect(() => {
     const fetchCampaign = async () => {
@@ -217,9 +220,9 @@ const EditCampaign = () => {
 
   const getTabForField = (fieldName: string): string => {
     if (fieldName.includes('name') || fieldName.includes('status') ||
-        fieldName.includes('lead_type') || fieldName.includes('exclusivity') ||
-        fieldName.includes('language') || fieldName.includes('poc_phone') ||
-        fieldName.includes('company_contact')) return 'basic';
+      fieldName.includes('lead_type') || fieldName.includes('exclusivity') ||
+      fieldName.includes('language') || fieldName.includes('poc_phone') ||
+      fieldName.includes('company_contact')) return 'basic';
     else if (fieldName.includes('geography')) return 'geography';
     else if (fieldName.includes('delivery')) return 'delivery';
     else if (fieldName.includes('note')) return 'notes';
@@ -228,7 +231,7 @@ const EditCampaign = () => {
 
   const handleSubmit = async (
     values: typeof defaultValues,
-    { setSubmitting, setTouched, validateForm, setFieldError }: { 
+    { setSubmitting, setTouched, validateForm, setFieldError }: {
       setSubmitting: (isSubmitting: boolean) => void;
       setTouched: (touched: any) => void;
       validateForm: () => Promise<any>;
@@ -301,7 +304,11 @@ const EditCampaign = () => {
 
       const cleanedValues = cleanCampaignValues(values);
       const id = Array.isArray(campaignId) ? campaignId[0] : campaignId;
-      if (!id) return;
+      if (!id) {
+        toast.error("Campaign ID is missing. Cannot update.");
+        setSubmitting(false);
+        return;
+      }
 
       const res = await axiosWrapper(
         "put",
@@ -338,8 +345,8 @@ const EditCampaign = () => {
   }
 
   return (
-    <div className="container min-h-screen flex flex-col mx-auto items-center md:px-0 py-8">
-      <h2 className="text-[24px] font-[500] text-[#1C1C1C] text-center mb-6">Edit Campaign</h2>
+    <div className="container min-h-screen flex flex-col mx-auto items-center px-4 md:px-0 py-6 sm:py-8">
+      <h2 className="text-xl sm:text-2xl font-medium text-[#1C1C1C] text-center mb-4 sm:mb-6">Edit Campaign</h2>
 
       <Formik
         enableReinitialize={true}
@@ -347,7 +354,7 @@ const EditCampaign = () => {
         validationSchema={validationSchema}
         onSubmit={handleSubmit}
       >
-        {({ isSubmitting, values, setFieldValue, validateForm, setTouched, setFieldError, errors, submitForm }) => (
+        {({ isSubmitting, values, setFieldValue, validateForm, setTouched, setFieldTouched, setFieldError, errors, submitForm }) => (
           <div className="w-full max-w-[1200px]">
             <StateEffectsHandler
               selectedState={values.geography.state}
@@ -355,14 +362,14 @@ const EditCampaign = () => {
               token={token}
               setCountiesList={setCountiesList}
               setIsLoadingCounties={setIsLoadingCounties}
-              // setUtilitiesList={setUtilitiesList}
-              // setIsLoadingUtilities={setIsLoadingUtilities}
+            // setUtilitiesList={setUtilitiesList}
+            // setIsLoadingUtilities={setIsLoadingUtilities}
             />
 
             <TabsHeader activeTab={activeTab} setActiveTab={setActiveTab} errors={errors} />
 
-            <Form className="space-y-8">
-              <div className="bg-white p-8 rounded-lg border border-[#E0E0E0] min-h-[500px]">
+            <Form className="space-y-6 sm:space-y-8">
+              <div className="bg-white p-4 sm:p-6 md:p-8 rounded-lg border border-[#E0E0E0] min-h-[400px] sm:min-h-[500px]">
                 {renderTabContent(
                   activeTab,
                   values,
@@ -376,7 +383,7 @@ const EditCampaign = () => {
                   setActiveDeliveryTab,
                   true,
                   isAdmin,
-                
+
                 )}
               </div>
 
@@ -387,9 +394,9 @@ const EditCampaign = () => {
                 isEditMode={true}
                 validateForm={validateForm}
                 setTouched={setTouched}
+                setFieldTouched={setFieldTouched}
                 values={values}
                 errors={errors}
-                setFieldError={setFieldError}
                 submitForm={submitForm}
               />
             </Form>

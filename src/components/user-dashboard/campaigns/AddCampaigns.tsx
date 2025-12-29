@@ -25,7 +25,7 @@ const AddNewCampaign = () => {
   const token = useSelector((state: RootState) => state.auth.token);
   const userRole = useSelector((state: RootState) => state.auth.user?.role);
   const isAdmin = userRole === 'admin' || userRole === 'ADMIN';
-  
+
   // State management
   const [activeTab, setActiveTab] = useState("basic");
   const [statesList, setStatesList] = useState<State[]>([]);
@@ -66,7 +66,7 @@ const AddNewCampaign = () => {
     setIsEditMode(false);
     setActiveTab("basic");
     setActiveDeliveryTab("method");
-    
+
     // Create fresh initial values
     const freshInitialValues = JSON.parse(JSON.stringify(initialValues));
     console.log("Initial Values:", initialValues);
@@ -78,7 +78,7 @@ const AddNewCampaign = () => {
     setUtilitiesList([]);
     setIsLoadingCounties(false);
     setIsLoadingUtilities(false);
-    
+
     // Force form remount with new key
     setFormKey(Date.now());
   }, []);
@@ -110,8 +110,8 @@ const AddNewCampaign = () => {
 
   const handleSubmit = async (
     values: typeof initialValues,
-    { setSubmitting, resetForm, setTouched, validateForm, setFieldError }: { 
-      setSubmitting: (isSubmitting: boolean) => void; 
+    { setSubmitting, resetForm, setTouched, validateForm, setFieldError }: {
+      setSubmitting: (isSubmitting: boolean) => void;
       resetForm: () => void;
       setTouched: (touched: any) => void;
       validateForm: () => Promise<any>;
@@ -120,13 +120,13 @@ const AddNewCampaign = () => {
   ) => {
     try {
       setSubmitting(true);
-      
+
       // Validate all fields first
       const errors = await validateForm();
-      
+
       if (Object.keys(errors).length > 0) {
         console.log("Validation errors:", errors);
-        
+
         const touchedFields = {};
         const markAllFieldsTouched = (obj: any, prefix = '') => {
           Object.keys(obj).forEach(key => {
@@ -140,13 +140,13 @@ const AddNewCampaign = () => {
         };
         markAllFieldsTouched(initialValues);
         setTouched(touchedFields);
-        
+
         const firstErrorField = Object.keys(errors)[0];
         const tabWithError = getTabForField(firstErrorField);
         setActiveTab(tabWithError);
-        
+
         toast.error("Please fix the validation errors and try again.");
-        
+
         setTimeout(() => {
           const headerEl = document.querySelector(".tabs-header");
           if (headerEl) {
@@ -155,9 +155,9 @@ const AddNewCampaign = () => {
 
           setTimeout(() => {
             const errorElement = document.querySelector(`[name="${firstErrorField}"]`) ||
-                               document.querySelector(`input[name="${firstErrorField}"]`) ||
-                               document.querySelector(`select[name="${firstErrorField}"]`) ||
-                               document.querySelector(`textarea[name="${firstErrorField}"]`);
+              document.querySelector(`input[name="${firstErrorField}"]`) ||
+              document.querySelector(`select[name="${firstErrorField}"]`) ||
+              document.querySelector(`textarea[name="${firstErrorField}"]`);
             if (errorElement) {
               errorElement.scrollIntoView({ behavior: "smooth", block: "center" });
               if (errorElement instanceof HTMLElement && 'focus' in errorElement) {
@@ -166,11 +166,11 @@ const AddNewCampaign = () => {
             }
           }, 200);
         }, 150);
-        
+
         setSubmitting(false);
         return;
       }
-      
+
       // Delivery method validation
       if (!values.delivery.method || values.delivery.method.length === 0) {
         setFieldError('delivery.method', 'Please select at least one delivery method');
@@ -225,14 +225,14 @@ const AddNewCampaign = () => {
         message?: string;
         details?: { message: string }[];
       };
-      
+
       console.log("Campaign created successfully:", response);
       toast.success(response?.message || "Campaign added successfully!");
-      
+
       // Reset form and state completely after successful submission
       resetForm();
       resetToAddMode(); // This will reset everything to fresh state
-      
+
     } catch (err) {
       console.error("Error saving campaign:", err);
       toast.error(getErrorMessage(err));
@@ -242,10 +242,10 @@ const AddNewCampaign = () => {
   };
 
   const getTabForField = (fieldName: string): string => {
-    if (fieldName.includes('name') || fieldName.includes('status') || 
-        fieldName.includes('lead_type') || fieldName.includes('exclusivity') ||
-        fieldName.includes('language') || fieldName.includes('poc_phone') ||
-        fieldName.includes('company_contact') || fieldName.includes('bid_price')) {
+    if (fieldName.includes('name') || fieldName.includes('status') ||
+      fieldName.includes('lead_type') || fieldName.includes('exclusivity') ||
+      fieldName.includes('language') || fieldName.includes('poc_phone') ||
+      fieldName.includes('company_contact') || fieldName.includes('bid_price')) {
       return 'basic';
     } else if (fieldName.includes('geography')) {
       return 'geography';
@@ -258,13 +258,13 @@ const AddNewCampaign = () => {
   };
 
   return (
-    <div className="container min-h-screen flex flex-col mx-auto items-center md:px-0 py-8">
-      <h2 className="text-[24px] font-[500] text-[#1C1C1C] text-center mb-6">Add New Campaign</h2>
+    <div className="container min-h-screen flex flex-col mx-auto items-center px-4 md:px-0 py-6 sm:py-8">
+      <h2 className="text-xl sm:text-2xl font-medium text-[#1C1C1C] text-center mb-4 sm:mb-6">Add New Campaign</h2>
 
-      <Formik 
+      <Formik
         key={formKey}
         initialValues={currentInitialValues}
-        validationSchema={validationSchema} 
+        validationSchema={validationSchema}
         enableReinitialize={false} // Changed to false to prevent unwanted reinitializations
         onSubmit={handleSubmit}
         validateOnChange={true}
@@ -279,14 +279,14 @@ const AddNewCampaign = () => {
                 token={token}
                 setCountiesList={setCountiesList}
                 setIsLoadingCounties={setIsLoadingCounties}
-                // setUtilitiesList={setUtilitiesList}
-                // setIsLoadingUtilities={setIsLoadingUtilities}
+              // setUtilitiesList={setUtilitiesList}
+              // setIsLoadingUtilities={setIsLoadingUtilities}
               />
 
               <TabsHeader activeTab={activeTab} setActiveTab={setActiveTab} errors={errors} />
 
-              <Form className="space-y-8" noValidate>
-                <div className="bg-white p-8 rounded-lg border border-[#E0E0E0] min-h-[500px]">
+              <Form className="space-y-6 sm:space-y-8" noValidate>
+                <div className="bg-white p-4 sm:p-6 md:p-8 rounded-lg border border-[#E0E0E0] min-h-[400px] sm:min-h-[500px]">
                   {renderTabContent(
                     activeTab,
                     values,

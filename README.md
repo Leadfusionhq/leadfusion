@@ -11,7 +11,7 @@
 
 **A modern frontend application for lead management, built with Next.js 16, React 19, and TypeScript**
 
-> 📌 **Note:** This is the **frontend application** that consumes APIs from the [LeadFusion Node.js Backend](https://github.com/leadfusionhq/leadfusion-api)
+> 📌 **Note:** This is the **frontend application** that consumes APIs from the [LeadFusion Node.js Backend](https://github.com/leadfusionhq/leadfusion-backend)
 
 [Features](#-features) • [Tech Stack](#-tech-stack) • [Getting Started](#-getting-started) • [Project Structure](#-project-structure) • [API Documentation](#-api-documentation)
 
@@ -97,7 +97,7 @@
 
 - **Node.js** 18+ (see `.nvmrc`)
 - **npm** or **pnpm**
-- **LeadFusion Backend API** running (see [leadfusion-api](https://github.com/leadfusionhq/leadfusion-api))
+- **LeadFusion Backend API** running (see [leadfusion-backend](https://github.com/leadfusionhq/leadfusion-backend))
 
 ### Installation
 
