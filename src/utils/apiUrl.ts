@@ -48,6 +48,9 @@ export const API_URL = {
 
   ADD_BALANCE: `${ADMIN_API_BASE}/:userId/addBalance`,
 
+  TRIGGER_LOW_BALANCE: `${ADMIN_API_BASE}/:userId/trigger-low-balance`,
+  TRIGGER_BALANCE_TOP_UP: `${ADMIN_API_BASE}/:userId/trigger-balance-top-up`,
+
   // Auth URLs
   LOGIN_USER: `${AUTH_API_BASE}/login`,
   REGISTER_USER: `${AUTH_API_BASE}/register`,

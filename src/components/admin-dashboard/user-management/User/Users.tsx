@@ -40,7 +40,11 @@ import {
   Users as UsersIcon,
   UserPlus,
   UserCheck,
-  Banknote
+  Banknote,
+  Zap,
+  TrendingDown,
+  TrendingUp,
+  X as XIcon
 } from "lucide-react";
 import { toast } from 'react-toastify';
 import ConfirmDialog from "@/components/common/ConfirmDialog";
@@ -512,6 +516,28 @@ export default function UserTable() {
     }
   };
 
+  const handleTriggerLowBalance = async (row: User) => {
+    const toastId = toast.loading(`Triggering Low Balance webhook for ${row.name}...`);
+    try {
+      const url = API_URL.TRIGGER_LOW_BALANCE.replace(':userId', row._id);
+      const response = await axiosWrapper('post', url, {}, token ?? undefined) as any;
+      toast.update(toastId, { render: response?.message || 'Low balance webhook sent successfully', type: 'success', isLoading: false, autoClose: 3000 });
+    } catch (err: any) {
+      toast.update(toastId, { render: err?.response?.data?.message || err.message || "Webhook failed", type: 'error', isLoading: false, autoClose: 5000 });
+    }
+  };
+
+  const handleTriggerBalanceTopUp = async (row: User) => {
+    const toastId = toast.loading(`Triggering Balance Top-up webhook for ${row.name}...`);
+    try {
+      const url = API_URL.TRIGGER_BALANCE_TOP_UP.replace(':userId', row._id);
+      const response = await axiosWrapper('post', url, {}, token ?? undefined) as any;
+      toast.update(toastId, { render: response?.message || 'Top-up webhook sent successfully', type: 'success', isLoading: false, autoClose: 3000 });
+    } catch (err: any) {
+      toast.update(toastId, { render: err?.response?.data?.message || err.message || "Webhook failed", type: 'error', isLoading: false, autoClose: 5000 });
+    }
+  };
+
 
   // --- Table Setup ---
 
@@ -663,6 +689,8 @@ export default function UserTable() {
               setTransactionUser(user);
               setTransactionDrawerOpen(true);
             }}
+            onTriggerLowBalance={() => handleTriggerLowBalance(user)}
+            onTriggerBalanceTopUp={() => handleTriggerBalanceTopUp(user)}
           />
         )
       }
@@ -1168,7 +1196,9 @@ const ActionMenu = ({
   onToggleStatus,
   onSendWebhook,
   onViewTransactions,
-  onPayPending
+  onPayPending,
+  onTriggerLowBalance,
+  onTriggerBalanceTopUp
 }: {
   user: User;
   onEdit: () => void;
@@ -1181,8 +1211,11 @@ const ActionMenu = ({
   onSendWebhook: () => void;
   onPayPending: () => void;
   onViewTransactions: () => void;
+  onTriggerLowBalance: () => void;
+  onTriggerBalanceTopUp: () => void;
 }) => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [n8nDialogOpen, setN8nDialogOpen] = useState(false);
   const open = Boolean(anchorEl);
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -1264,10 +1297,128 @@ const ActionMenu = ({
           <Banknote size={16} /> Pay Pending Leads
         </MenuItem>
 
+        <MenuItem onClick={() => { setN8nDialogOpen(true); handleClose(); }} disableRipple className="text-sm font-medium text-purple-700 gap-2">
+          <Zap size={16} /> N8N Webhooks
+        </MenuItem>
+
         <MenuItem onClick={() => { onViewTransactions(); handleClose(); }} disableRipple className="text-sm font-medium text-gray-700 gap-2">
           <History size={16} /> View Transactions
         </MenuItem>
       </Menu>
+      <N8nWebhookDialog
+        open={n8nDialogOpen}
+        onClose={() => setN8nDialogOpen(false)}
+        userName={user.name}
+        isActive={user.isActive}
+        onTriggerLowBalance={() => { onTriggerLowBalance(); setN8nDialogOpen(false); }}
+        onTriggerBalanceTopUp={() => { onTriggerBalanceTopUp(); setN8nDialogOpen(false); }}
+      />
     </>
+  );
+};
+
+// N8N Webhook Dialog
+const N8nWebhookDialog = ({
+  open,
+  onClose,
+  userName,
+  isActive,
+  onTriggerLowBalance,
+  onTriggerBalanceTopUp,
+}: {
+  open: boolean;
+  onClose: () => void;
+  userName: string;
+  isActive: boolean;
+  onTriggerLowBalance: () => void;
+  onTriggerBalanceTopUp: () => void;
+}) => {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center" onClick={onClose}>
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+
+      {/* Dialog */}
+      <div
+        className="relative bg-white rounded-2xl shadow-2xl border border-gray-100 w-full max-w-sm mx-4 overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="bg-gradient-to-r from-purple-600 to-purple-700 px-5 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 bg-white/20 rounded-lg">
+              <Zap size={16} className="text-white" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-white">N8N Webhooks</h3>
+              <p className="text-[11px] text-purple-200 mt-0.5 truncate max-w-[180px]">{userName}</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg hover:bg-white/10 transition-colors text-white/70 hover:text-white"
+          >
+            <XIcon size={16} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-4 space-y-3">
+          <p className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-3">Select webhook to trigger</p>
+
+          {/* Trigger Low Balance */}
+          <button
+            onClick={onTriggerLowBalance}
+            className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-rose-100 bg-rose-50 hover:bg-rose-100 hover:border-rose-200 transition-all group text-left"
+          >
+            <div className="p-2.5 bg-rose-100 group-hover:bg-rose-200 rounded-xl transition-colors flex-shrink-0">
+              <TrendingDown size={18} className="text-rose-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-semibold text-gray-900">Trigger Low Balance</span>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700 border border-rose-200 flex-shrink-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500 mr-1" />
+                  Inactive
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 mt-0.5">Fire N8N low balance notification webhook</p>
+            </div>
+          </button>
+
+          {/* Trigger Top-Up */}
+          <button
+            onClick={onTriggerBalanceTopUp}
+            className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-emerald-100 bg-emerald-50 hover:bg-emerald-100 hover:border-emerald-200 transition-all group text-left"
+          >
+            <div className="p-2.5 bg-emerald-100 group-hover:bg-emerald-200 rounded-xl transition-colors flex-shrink-0">
+              <TrendingUp size={18} className="text-emerald-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-semibold text-gray-900">Trigger Top-Up Alert</span>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 border border-emerald-200 flex-shrink-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1" />
+                  Active
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 mt-0.5">Fire N8N balance top-up webhook</p>
+            </div>
+          </button>
+        </div>
+
+        {/* Footer */}
+        <div className="px-4 pb-4">
+          <button
+            onClick={onClose}
+            className="w-full py-2 text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-xl transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
   );
 };
