@@ -44,13 +44,15 @@ import {
   Zap,
   TrendingDown,
   TrendingUp,
-  X as XIcon
+  X as XIcon,
+  FileText
 } from "lucide-react";
 import { toast } from 'react-toastify';
 import ConfirmDialog from "@/components/common/ConfirmDialog";
 import { Menu, MenuItem, IconButton, Tooltip, Popover, List, ListItem, ListItemIcon, ListItemText, Typography, Divider, Chip } from "@mui/material";
 import useDebounce from '@/hooks/useDebounce';
 import UserTransactionsDrawer from './UserTransactionsDrawer';
+import UserLogsDrawer from './UserLogsDrawer';
 
 // --- Types ---
 type PaymentMethod = {
@@ -184,9 +186,10 @@ type MobileUserCardProps = {
   onToggleStatus: () => void;
   onDelete: () => void;
   onResendVerification: () => void;
+  onViewLogs: () => void;
 };
 
-const MobileUserCard = ({ user, onEdit, onAddBalance, onToggleStatus, onDelete, onResendVerification }: MobileUserCardProps) => {
+const MobileUserCard = ({ user, onEdit, onAddBalance, onToggleStatus, onDelete, onResendVerification, onViewLogs }: MobileUserCardProps) => {
   const defaultCard = user.paymentMethods?.find(pm => pm.isDefault) || user.paymentMethods?.[0];
 
   return (
@@ -287,6 +290,13 @@ const MobileUserCard = ({ user, onEdit, onAddBalance, onToggleStatus, onDelete, 
           </button>
         )}
         <button
+          onClick={onViewLogs}
+          className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors min-h-[36px]"
+        >
+          <FileText size={14} />
+          Logs
+        </button>
+        <button
           onClick={onDelete}
           className="flex items-center justify-center px-3 py-2 text-xs font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors min-h-[36px]"
         >
@@ -311,6 +321,8 @@ export default function UserTable() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [transactionDrawerOpen, setTransactionDrawerOpen] = useState(false);
   const [transactionUser, setTransactionUser] = useState<User | null>(null);
+  const [logsDrawerOpen, setLogsDrawerOpen] = useState(false);
+  const [logsUser, setLogsUser] = useState<User | null>(null);
 
   const [pagination, setPagination] = useState({
     pageIndex: 0,
@@ -689,6 +701,10 @@ export default function UserTable() {
               setTransactionUser(user);
               setTransactionDrawerOpen(true);
             }}
+            onViewLogs={() => {
+              setLogsUser(user);
+              setLogsDrawerOpen(true);
+            }}
             onTriggerLowBalance={() => handleTriggerLowBalance(user)}
             onTriggerBalanceTopUp={() => handleTriggerBalanceTopUp(user)}
           />
@@ -814,6 +830,7 @@ export default function UserTable() {
               onToggleStatus={() => handleToggleUser(user)}
               onDelete={() => { setSelectedUser(user); setConfirmOpen(true); }}
               onResendVerification={() => handleResendVerificationEmail(user)}
+              onViewLogs={() => { setLogsUser(user); setLogsDrawerOpen(true); }}
             />
           ))
         ) : (
@@ -1099,6 +1116,12 @@ export default function UserTable() {
         userId={transactionUser?._id || null}
         userName={transactionUser?.name || ''}
       />
+      <UserLogsDrawer
+        open={logsDrawerOpen}
+        onClose={() => setLogsDrawerOpen(false)}
+        userId={logsUser?._id || null}
+        userName={logsUser?.name || ''}
+      />
     </div>
   );
 }
@@ -1197,6 +1220,7 @@ const ActionMenu = ({
   onSendWebhook,
   onViewTransactions,
   onPayPending,
+  onViewLogs,
   onTriggerLowBalance,
   onTriggerBalanceTopUp
 }: {
@@ -1211,6 +1235,7 @@ const ActionMenu = ({
   onSendWebhook: () => void;
   onPayPending: () => void;
   onViewTransactions: () => void;
+  onViewLogs: () => void;
   onTriggerLowBalance: () => void;
   onTriggerBalanceTopUp: () => void;
 }) => {
@@ -1303,6 +1328,10 @@ const ActionMenu = ({
 
         <MenuItem onClick={() => { onViewTransactions(); handleClose(); }} disableRipple className="text-sm font-medium text-gray-700 gap-2">
           <History size={16} /> View Transactions
+        </MenuItem>
+
+        <MenuItem onClick={() => { onViewLogs(); handleClose(); }} disableRipple className="text-sm font-medium text-gray-700 gap-2">
+          <FileText size={16} /> View Logs
         </MenuItem>
       </Menu>
       <N8nWebhookDialog
